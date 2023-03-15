@@ -2,7 +2,7 @@
 
 AQDnet: Deep Neural Network for Protein-Ligand Docking Simulation.
 
-<img src="./graphical_abstract.png" alt="">
+<img src="./SchematicAbstract.png" alt="">
 
 ## Script
 * aqdnet.py
