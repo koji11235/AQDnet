@@ -35,8 +35,16 @@ AQDnet: Deep Neural Network for Protein-Ligand Docking Simulation.
 ## Results
 * Docking_Energy30RMSD2.5
   * Evaluation results of AQDnet's Docking-specific model with CASF-2016.
+* Docking_AQDnet_summary.csv
+  * Docking power test result of three different energy filtering conditions.
 * Scoring_Energy02RMSD2.0
   * Evaluation results of AQDnet's Scoring-specific model with CASF-2016.
+* ScoringPower_result.csv
+  * the AQDnetet's result of Scoring power test and those of the other SFs.
+* LIT-PCBA_result.csv
+  * All tha result of the AQDnet's LIT-PCBA evaluation. EF1% of all template PDB ids are described.
+* LIT-PCBA_result_summary.csv
+  * Summarized LIT-PCBA result. Max, min, mean and SD of EF1% of all targets are descibed.
 
 ## Features
 * Sample AQDnet features. Due to file size, only features for 5 complexes are available here.
