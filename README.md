@@ -4,6 +4,14 @@ AQDnet: Deep Neural Network for Protein-Ligand Docking Simulation.
 
 <img src="./SchematicAbstract.png" alt="">
 
+## Important Notice: 
+The files below were moved to google drive.
+Models/Docking_Energy30RMSD2.5/best_model.h5
+Models/Scoring_Energy02RMSD2.0/best_model.h5
+[google drive](https://drive.google.com/drive/folders/1i9p5FpYisXrYICDraLmpMztvfA5Zn_-j?usp=share_link)
+
+
+
 ## Script
 * aqdnet.py
    * Code that provides an interface to AQDnet's feature extraction.
