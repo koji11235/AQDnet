@@ -1,0 +1,264 @@
+Metadata-Version: 2.1
+Name: aqdnet
+Version: 0.1.0
+Summary: Deep Neural Network for Protein-Ligand Docking and Scoring
+Home-page: https://github.com/koji11235/AQDnet
+Author: AQDnet Authors
+License: MIT
+Description: # AQDnet
+        
+        **AQDnet: Deep Neural Network for Protein-Ligand Docking and Scoring**
+        
+        A research repository for AQDnet, a deep neural network approach to predict binding affinities in protein-ligand docking simulations. This repository demonstrates a complete workflow: structure preprocessing → feature extraction → model training → prediction, with evaluation on CASF-2016 and LIT-PCBA benchmarks.
+        
+        <img src="./SchematicAbstract.png" alt="AQDnet Overview">
+        
+        ---
+        
+        ## Overview
+        
+        AQDnet learns spatial and chemical features of protein-ligand complexes to predict docking energies and binding scores. The repository includes:
+        
+        - **Feature extraction pipeline**: Converts PDB structures into learned feature representations
+        - **Two model variants**: Docking-specific (Energy30RMSD2.5) and Scoring-specific (Energy02RMSD2.0)
+        - **Benchmark evaluation**: CASF-2016 docking power, scoring power, and ranking power; LIT-PCBA virtual screening
+        - **Sample workflow**: Jupyter notebooks demonstrating the complete pipeline
+        
+        ---
+        
+        ## Why This Repository Exists
+        
+        This research was motivated by limitations in traditional scoring functions for protein-ligand binding prediction. AQDnet uses deep learning to automatically learn feature representations from 3D structures, without hand-crafted descriptor design. The work explores whether learned features improve consensus binding predictions across diverse protein targets.
+        
+        ---
+        
+        ## Repository Structure
+        
+        ```
+        AQDnet/
+        ├── README.md                          # This file
+        ├── environment.yml                    # Conda environment specification
+        ├── requirements.txt                   # Pip dependency list
+        ├── Scripts/                           # Core implementation
+        │   ├── aqdnet.py                      # Feature extraction interface
+        │   ├── lpcomp.py                      # Ligand-protein complex utilities
+        │   ├── model.py                       # Model training interface
+        │   ├── structure.py                   # DNN architecture definitions
+        │   ├── runner.py                      # Utility functions (loading, I/O)
+        │   ├── predict.py                     # Inference interface
+        │   ├── CASF2016.py                    # CASF-2016 evaluation
+        │   ├── preppdb.py                     # PDB structure preparation
+        │   ├── util.py                        # Helper utilities
+        │   └── visualize.py                   # Result visualization
+        ├── Features/                          # Extracted feature files
+        │   ├── feature_trainset_*.csv         # Training set features (10 shards)
+        │   ├── feature_validset_*.csv         # Validation set features (10 shards)
+        │   ├── label_{trainset,validset}.csv  # Binding labels
+        │   └── *.tfrecords                    # TensorFlow record format
+        ├── Models/                            # Trained model checkpoints
+        │   ├── Docking_Energy30RMSD2.5/       # Docking-specific model
+        │   └── Scoring_Energy02RMSD2.0/       # Scoring-specific model
+        ├── Results/                           # Evaluation results
+        │   ├── CASF2016_Docking_Energy30RMSD2.5/
+        │   ├── CASF2016_Scoring_Energy02RMSD2.0/
+        │   ├── LIT-PCBA_result*.csv
+        │   ├── ScoringPower_result.csv
+        │   └── Docking_AQDnet_summary.csv
+        ├── SampleStructures/                  # 5 example PDB complexes
+        │   ├── 184l/, 185l/, 186l/, 187l/, 188l/
+        │   └── predict_example/
+        ├── Ex1_generate_feature.ipynb         # Feature extraction example
+        ├── Ex2_train_model.ipynb              # Model training example
+        ├── Ex3_predict.ipynb                  # Prediction example
+        └── SchematicAbstract.png              # Research schematic
+        ```
+        
+        ---
+        
+        ## Installation
+        
+        ### Option 1: Docker (Recommended)
+        
+        All dependencies are pre-installed in the provided Docker image:
+        
+        ```bash
+        docker run --rm -it \
+          -v "$PWD":/workspace \
+          -w /workspace \
+          koji11235/aqdnet_env:latest \
+          bash
+        ```
+        
+        ### Option 2: Local Environment
+        
+        ```bash
+        # Create conda environment
+        conda env create -f environment.yml
+        conda activate aqdnet
+        
+        # Or via pip
+        pip install -r requirements.txt
+        ```
+        
+        **Requirements:**
+        - Python 3.6+
+        - TensorFlow 2.3.2
+        - RDKit
+        - Dask
+        - Pandas, NumPy
+        
+        ---
+        
+        ## Quick Start
+        
+        ### 1. Verify Installation
+        
+        ```bash
+        # In Docker or local environment
+        python Scripts/aqdnet.py --help
+        ```
+        
+        ### 2. Generate Features from Sample Structures
+        
+        ```bash
+        # Extract features from 5 sample complexes
+        python Scripts/aqdnet.py \
+          --input SampleStructures \
+          --output sample_features.csv \
+          --ligand_code LGD
+        ```
+        
+        ### 3. Make a Prediction
+        
+        ```bash
+        # Use pretrained model (requires downloading best_model.h5)
+        # See "Artifact Note" below
+        python Scripts/predict.py \
+          --features sample_features.csv \
+          --model Models/Docking_Energy30RMSD2.5/ \
+          --output predictions.csv
+        ```
+        
+        ---
+        
+        ## Example Workflow
+        
+        For a complete walkthrough, see the Jupyter notebooks:
+        
+        1. **Ex1_generate_feature.ipynb**  
+           Demonstrates feature extraction from PDB structures using the AQDnet algorithm.
+        
+        2. **Ex2_train_model.ipynb**  
+           Shows model training on sample features and validation workflow.
+        
+        3. **Ex3_predict.ipynb**  
+           Illustrates inference using trained models.
+        
+        Each notebook is self-contained and runnable in the Docker environment.
+        
+        ---
+        
+        ## Results Summary
+        
+        ### CASF-2016 Docking Benchmark
+        - **Docking Power (Top-1 Rank)**: Reported in `Results/CASF2016_Docking_Energy30RMSD2.5/`
+        - **Scoring Power**: Reported in `Results/CASF2016_Scoring_Energy02RMSD2.0/`
+        - **Ranking Power**: Kendall τ and Spearman ρ in result files
+        
+        ### LIT-PCBA Virtual Screening
+        - **Enrichment Factor (EF1%)**: Summarized in `Results/LIT-PCBA_result_summary.csv`
+        - **Per-target results**: `Results/LIT-PCBA_result.csv`
+        
+        See individual CSV files in `Results/` for detailed metrics.
+        
+        ---
+        
+        ## Reproducibility & Limitations
+        
+        ### What Is Reproducible
+        - ✓ Feature extraction from PDB structures
+        - ✓ Model training pipeline with sample features  
+        - ✓ Prediction on new structures
+        - ✓ Evaluation code for CASF-2016 and LIT-PCBA
+        
+        ### What Requires External Files
+        - ✗ Full benchmark training & evaluation  
+          → Requires complete CASF-2016 training set and LIT-PCBA data (must be obtained separately)
+        - ✗ Pretrained model weights  
+          → `best_model.h5` files moved to Google Drive (see "Artifact Note")
+        
+        ### Known Limitations
+        1. **Python 3.6 Legacy**: TensorFlow 2.3.2 is old; no guarantee of compatibility with Python 3.9+.
+        2. **CUDA Dependency**: GPU acceleration requires CUDA 10.1 and cuDNN; CPU-only mode is slower.
+        3. **Memory Requirements**: Feature extraction on large datasets requires 16+ GB RAM or Dask chunking.
+        4. **Notebook Dependency**: Primary examples are Jupyter notebooks; CLI may require additional polish for production use.
+        5. **SMILES Support**: Current implementation uses only 3D coordinates; no method for SMILES-to-3D conversion.
+        
+        ---
+        
+        ## Artifact Note
+        
+        ### Model Weights
+        
+        The trained model checkpoints are **too large for GitHub** and are hosted on Google Drive:
+        
+        **Docking-specific model:**
+        - `Models/Docking_Energy30RMSD2.5/best_model.h5`  
+        - [Download from Google Drive](https://drive.google.com/drive/folders/1i9p5FpYisXrYICDraLmpMztvfA5Zn_-j?usp=share_link)
+        
+        **Scoring-specific model:**
+        - `Models/Scoring_Energy02RMSD2.0/best_model.h5`  
+        - [Download from Google Drive](https://drive.google.com/drive/folders/1i9p5FpYisXrYICDraLmpMztvfA5Zn_-j?usp=share_link)
+        
+        **Why external storage?**
+        - Model files are ~200–500 MB each; GitHub supports max 100 MB per file and total LFS quota is limited.
+        - Easier version control and download management via Google Drive.
+        
+        **No Proprietary Data:**
+        - All code is original.
+        - Sample structures (184l, 185l, etc.) are from public PDB; reproducible from 4-letter PDB code.
+        - Features are derived; no proprietary descriptor definitions.
+        
+        ---
+        
+        ## Future Improvements
+        
+        - [ ] Migrate to modern TensorFlow (2.12+) with Python 3.10+ support
+        - [ ] Add type hints and full unit/integration tests
+        - [ ] Package as `pip install aqdnet` with unified CLI
+        - [ ] Support for molecular graphs / DGL backend
+        - [ ] Interactive visualization of feature importance
+        - [ ] Automated benchmark download & evaluation pipeline
+        - [ ] Containerize with CPU-only and GPU variants
+        - [ ] Add SMILES parsing for de novo ligand design
+        
+        ---
+        
+        ## Citation
+        
+        If you use AQDnet in your research, please cite the original work:
+        (Add citation info if published)
+        
+        ---
+        
+        ## License
+        
+        MIT License. See [LICENSE](LICENSE) file for details.
+        
+        **Use terms:**
+        - Code and examples are freely usable for research and education.
+        - Model weights are provided as-is for reproducibility and benchmarking.
+        - If redistributing trained models, please acknowledge the original source.
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Topic :: Scientific/Engineering :: Chemistry
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown

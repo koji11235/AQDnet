@@ -1,5 +1,4 @@
 import sys
-sys.path.append('/home/open-share/shiota/aqdnet_20221006/script/')
 import os
 import glob
 import tempfile
@@ -68,7 +67,7 @@ if __name__ == '__main__':
 
     Examples:
         singularity shell --nv environment/aqdnet_env_latest.sif
-        python predict.py -input_dir "input/" -output "output.csv" -model "../Models/Docking_Energy30RMSD2.5/" -num_cpu 2 -cuda '-1'
+        python predict.py -input_dir "input/" -output "output.csv" -model "../models/Docking_Energy30RMSD2.5/" -num_cpu 2 -cuda '-1'
     
     """
 

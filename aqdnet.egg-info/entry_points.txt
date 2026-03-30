@@ -1,0 +1,3 @@
+[console_scripts]
+aqdnet = aqdnet_cli:main
+
