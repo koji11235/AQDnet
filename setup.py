@@ -23,7 +23,7 @@ setup(
     install_requires=[],
     entry_points={
         'console_scripts': [
-            'aqdnet=aqdnet_cli:main',
+            'aqdnet=aqdnet_cli.__main__:main',
         ],
     },
     python_requires='>=3.6',

@@ -14,7 +14,8 @@ def main():
         epilog="""
 Examples:
   python -m aqdnet_cli featurize --input sample_structures/ --output features.csv
-  python -m aqdnet_cli predict --model models/Docking_Energy30RMSD2.5/ --features features.csv --output predictions.csv
+  python -m aqdnet_cli featurize --input sample_structures/predict_example --feature-param-file models/Docking_Energy30RMSD2.5/params_for_predict.json --output features.csv
+  python -m aqdnet_cli predict --model models/Docking_Energy30RMSD2.5 --features sample_structures/predict_example --output predictions.csv
   python -m aqdnet_cli demo
         """
     )
@@ -32,6 +33,8 @@ Examples:
                                   help='Output CSV file for features')
     featurize_parser.add_argument('--ligand-code', type=str, default='LGD',
                                   help='Ligand code in PDB (default: LGD)')
+    featurize_parser.add_argument('--feature-param-file', type=str, default=None,
+                                  help='Optional params_for_predict.json path; if set, use its fg_params for feature generation')
     featurize_parser.add_argument('--num-cpu', type=int, default=2,
                                   help='Number of CPUs for parallel processing (default: 2)')
     featurize_parser.set_defaults(func=featurize_command)
@@ -55,7 +58,7 @@ Examples:
     predict_parser.add_argument('--model', required=True, type=str,
                                 help='Trained model directory (must contain best_model.h5 and params_for_predict.json)')
     predict_parser.add_argument('--features', required=True, type=str,
-                                help='Feature CSV file(s) or directory')
+                                help='Feature CSV file, PDB directory, or single PDB file')
     predict_parser.add_argument('--output', required=True, type=str,
                                 help='Output CSV file for predictions')
     predict_parser.add_argument('--num-cpu', type=int, default=2,

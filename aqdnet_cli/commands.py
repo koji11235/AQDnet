@@ -30,11 +30,71 @@ MODEL_CLASSES = {
 }
 
 
+def discover_pdb_files(input_path):
+    """Find PDB files under a directory tree or from a single file path."""
+    if os.path.isfile(input_path):
+        if not input_path.lower().endswith('.pdb'):
+            raise ValueError(f"Input file is not a PDB file: {input_path}")
+        return [input_path]
+
+    if not os.path.isdir(input_path):
+        raise FileNotFoundError(f"Input path not found: {input_path}")
+
+    return sorted(glob.glob(os.path.join(input_path, '**', '*.pdb'), recursive=True))
+
+
 def parse_params_json(json_file):
     """Load model parameters from JSON file"""
     with open(json_file) as f:
         params = json.load(f)
     return params
+
+
+def resolve_model_paths(model_dir):
+    """Resolve required model files from a model directory."""
+    model_path = os.path.join(model_dir, 'best_model.h5')
+    params_file = os.path.join(model_dir, 'params_for_predict.json')
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found: {model_path}")
+    if not os.path.exists(params_file):
+        raise FileNotFoundError(f"Params file not found: {params_file}")
+    return model_path, params_file
+
+
+def load_feature_csv(csv_file):
+    """Load a feature CSV and preserve serialized index columns when present."""
+    dataset = pd.read_csv(csv_file)
+    unnamed_columns = [col for col in dataset.columns if str(col).startswith('Unnamed:')]
+    if unnamed_columns:
+        index_column = unnamed_columns[0]
+        logging.info(f"Using index-like column from features: {index_column}")
+        dataset = dataset.set_index(index_column)
+        if len(unnamed_columns) > 1:
+            dataset = dataset.drop(columns=unnamed_columns[1:])
+    return dataset
+
+
+def generate_feature_dataset(input_path, fg_params, num_cpu):
+    """Generate features from PDB inputs using the provided feature-generator params."""
+    pdb_files = discover_pdb_files(input_path)
+    if not pdb_files:
+        raise ValueError(f"No PDB files found under {input_path}")
+
+    logging.info(f"Found {len(pdb_files)} PDB files")
+    with tempfile.NamedTemporaryFile(prefix='input_', suffix='.dat', delete=False) as temp_file:
+        temp_name = temp_file.name
+        with open(temp_name, mode='w') as f:
+            f.write('\n'.join(pdb_files))
+
+    try:
+        fg = aqdnet.FeatureGenerator(**fg_params)
+        logging.info("Generating features...")
+        dataset = fg.generate(temp_name, mode='complex', num_cpu=num_cpu)
+    finally:
+        if os.path.exists(temp_name):
+            os.remove(temp_name)
+
+    return dataset
 
 
 def get_model_class(model_class_name):
@@ -50,49 +110,44 @@ def featurize_command(args):
     """
     logging.info(f"Feature extraction from: {args.input}")
     logging.info(f"Output: {args.output}")
-    
-    if not os.path.isdir(args.input):
-        raise FileNotFoundError(f"Input directory not found: {args.input}")
-    
-    pdb_files = sorted(glob.glob(os.path.join(args.input, '*.pdb')))
-    
-    if not pdb_files:
-        raise ValueError(f"No PDB files found in {args.input}")
-    
-    logging.info(f"Found {len(pdb_files)} PDB files")
-    
-    # Generate features
-    with tempfile.NamedTemporaryFile(prefix='input_', suffix='.dat', delete=False) as temp_file:
-        temp_name = temp_file.name
-        with open(temp_name, mode='w') as f:
-            f.write('\n'.join(pdb_files))
-        
-        try:
-            fg = aqdnet.FeatureGenerator(lig_code=args.ligand_code)
-            logging.info("Generating features...")
-            dataset = fg.generate(temp_name, mode='complex', num_cpu=args.num_cpu)
-            
-            # Save to CSV
-            dataset.to_csv(args.output, index=False)
-            logging.info(f"Features saved to {args.output}")
-        finally:
-            if os.path.exists(temp_name):
-                os.remove(temp_name)
+
+    fg_params = {'lig_code': args.ligand_code}
+    if args.feature_param_file:
+        if not os.path.exists(args.feature_param_file):
+            raise FileNotFoundError(f"Feature param file not found: {args.feature_param_file}")
+        fg_params = parse_params_json(args.feature_param_file)['fg_params']
+        logging.info(f"Using feature-generation params from: {args.feature_param_file}")
+
+    dataset = generate_feature_dataset(args.input, fg_params, args.num_cpu)
+    dataset.to_csv(args.output, index=True, index_label='input_path')
+    logging.info(f"Features saved to {args.output}")
 
 
 def train_command(args):
     """
-    Model training command
-    
-    Note: This is a placeholder. Full training requires more setup.
+    Model training command.
+
+    This command validates the requested inputs and points users to the
+    notebook-based workflow, which remains the canonical training path.
     """
     logging.info(f"Training model with features: {args.features}")
     logging.info(f"Labels: {args.labels}")
     logging.info(f"Output directory: {args.output_dir}")
-    
-    raise NotImplementedError(
-        "Training CLI is not fully implemented yet. "
-        "Please use Ex2_train_model.ipynb for complete training workflow."
+
+    if not os.path.exists(args.features):
+        raise FileNotFoundError(f"Feature input not found: {args.features}")
+    if not os.path.exists(args.labels):
+        raise FileNotFoundError(f"Label file not found: {args.labels}")
+
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    logging.warning(
+        "Training remains notebook-first in this repository. "
+        "Use 02_train_model.ipynb for the full workflow."
+    )
+    logging.warning(
+        "This CLI command currently performs input validation only and does not "
+        "run model fitting end-to-end."
     )
 
 
@@ -101,33 +156,32 @@ def predict_command(args):
     Prediction command
     """
     logging.info(f"Loading model from: {args.model}")
-    logging.info(f"Input features: {args.features}")
+    logging.info(f"Input: {args.features}")
     logging.info(f"Output: {args.output}")
     
     os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
     
-    # Check model files
-    model_path = os.path.join(args.model, 'best_model.h5')
-    params_file = os.path.join(args.model, 'params_for_predict.json')
-    
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found: {model_path}")
-    if not os.path.exists(params_file):
-        raise FileNotFoundError(f"Params file not found: {params_file}")
+    model_path, params_file = resolve_model_paths(args.model)
     
     # Parse parameters
     params = parse_params_json(params_file)
     model_class_name = params['model_class_name']
+    fg_params = params['fg_params']
     model_params = params['model_params']
     
     model_class = get_model_class(model_class_name)
     
-    # Load features
-    if os.path.isfile(args.features):
+    # Load or generate features
+    if os.path.isdir(args.features) or (
+        os.path.isfile(args.features) and args.features.lower().endswith('.pdb')
+    ):
+        logging.info("Generating features from PDB input...")
+        dataset = generate_feature_dataset(args.features, fg_params, args.num_cpu)
+    elif os.path.isfile(args.features):
         logging.info("Loading features from CSV...")
-        dataset = pd.read_csv(args.features)
+        dataset = load_feature_csv(args.features)
     else:
-        raise FileNotFoundError(f"Feature file not found: {args.features}")
+        raise FileNotFoundError(f"Feature input not found: {args.features}")
     
     # Make predictions
     logging.info("Loading model...")
@@ -136,8 +190,12 @@ def predict_command(args):
     
     logging.info("Making predictions...")
     preds = model.predict(dataset)
-    
-    preds.to_csv(args.output, index=False)
+
+    if isinstance(preds.index, pd.RangeIndex) and not isinstance(dataset.index, pd.RangeIndex):
+        preds.index = dataset.index
+
+    index_label = preds.index.name or 'input_path'
+    preds.to_csv(args.output, index=True, index_label=index_label)
     logging.info(f"Predictions saved to {args.output}")
 
 

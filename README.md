@@ -80,7 +80,7 @@ All dependencies are pre-installed in the provided Docker image:
 docker run --rm -it \
   -v "$PWD":/workspace \
   -w /workspace \
-  koji11235/aqdnet_env:latest \
+  koji11235/aqdnet_env:v0.1.0 \
   bash
 ```
 
@@ -94,6 +94,9 @@ conda activate aqdnet
 # Or via pip
 pip install -r environment/requirements.txt
 ```
+
+Environment files are kept under `environment/` to separate runtime setup from
+the research code and benchmark artifacts in the repository root.
 
 **Requirements:**
 - Python 3.6+
@@ -110,29 +113,55 @@ pip install -r environment/requirements.txt
 
 ```bash
 # In Docker or local environment
-python scripts/aqdnet.py --help
+python -m aqdnet_cli --help
 ```
 
 ### 2. Generate Features from Sample Structures
 
 ```bash
-# Extract features from 5 sample complexes
-python scripts/aqdnet.py \
+# Extract generic features using only the ligand code
+python -m aqdnet_cli featurize \
   --input sample_structures \
   --output sample_features.csv \
-  --ligand_code LGD
+  --ligand-code LGD
+```
+
+If you want feature generation that exactly matches a prediction model, pass its
+`params_for_predict.json` file explicitly:
+
+```bash
+python -m aqdnet_cli featurize \
+  --input sample_structures/predict_example \
+  --feature-param-file models/Docking_Energy30RMSD2.5/params_for_predict.json \
+  --output predict_features.csv
 ```
 
 ### 3. Make a Prediction
 
 ```bash
-# Use pretrained model (requires downloading best_model.h5)
-# See "Artifact Note" below
-python scripts/predict.py \
-  --features sample_features.csv \
+# Predict directly from PDB inputs using the model's fg_params and model weights
+python -m aqdnet_cli predict \
   --model models/Docking_Energy30RMSD2.5/ \
+  --features sample_structures/predict_example \
   --output predictions.csv
 ```
+
+The prediction output includes both `input_path` and the predicted value, so
+each row can be traced back to its source PDB file.
+
+### 4. Training Workflow
+
+```bash
+# Validate training inputs from the CLI
+python -m aqdnet_cli train \
+  --features features/feature_trainset.tfrecords \
+  --labels features/label_trainset.csv \
+  --output-dir runs/example
+```
+
+This command is currently validation-only. It checks the requested paths and
+creates the output directory, but it does not run model fitting.
+Use `02_train_model.ipynb` for actual model fitting and benchmark reproduction.
 
 ---
 
@@ -238,6 +267,7 @@ See individual CSV files in `results/` for detailed metrics.
 2. **CUDA Dependency**: GPU acceleration requires CUDA 10.1 and cuDNN; CPU-only mode is slower.
 3. **Memory Requirements**: Feature extraction on large datasets requires 16+ GB RAM or Dask chunking.
 4. **Notebook Dependency**: Primary examples are Jupyter notebooks; CLI may require additional polish for production use.
+   Training remains notebook-first; CLI support focuses on feature extraction, prediction, and input validation.
 5. **SMILES Support**: Current implementation uses only 3D coordinates; no method for SMILES-to-3D conversion.
 
 ---

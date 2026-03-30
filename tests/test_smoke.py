@@ -12,7 +12,11 @@ import sys
 import tempfile
 import glob
 import json
+import shutil
+import subprocess
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 import pandas as pd
 import numpy as np
 
@@ -22,6 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 import aqdnet
 from model import ModelByTensorflow
 from structure import ElementwiseDNN
+from aqdnet_cli import commands
 
 
 class TestFeatureExtraction(unittest.TestCase):
@@ -65,9 +70,49 @@ class TestFeatureExtraction(unittest.TestCase):
                 if os.path.exists(temp_name):
                     os.remove(temp_name)
 
+    def test_recursive_pdb_discovery_from_sample_root(self):
+        """Test that CLI PDB discovery finds nested sample structure files."""
+        sample_dir = os.path.join(os.path.dirname(__file__), '..', 'sample_structures')
+        pdb_files = commands.discover_pdb_files(sample_dir)
+
+        self.assertGreater(len(pdb_files), 0, f"No PDB files found in {sample_dir}")
+        self.assertTrue(all(path.endswith('.pdb') for path in pdb_files))
+
 
 class TestModelPipeline(unittest.TestCase):
     """Test model loading and prediction pipeline"""
+
+    def _model_dir(self, name):
+        return os.path.join(os.path.dirname(__file__), '..', 'models', name)
+
+    def _has_real_model_artifact(self, name):
+        model_dir = self._model_dir(name)
+        return (
+            os.path.exists(os.path.join(model_dir, 'params_for_predict.json')) and
+            os.path.exists(os.path.join(model_dir, 'best_model.h5'))
+        )
+
+    def _generate_feature_csv_for_prediction(self, temp_dir, fg_params):
+        sample_dir = os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'sample_structures',
+            'predict_example',
+        )
+        pdb_files = sorted(glob.glob(os.path.join(sample_dir, '*.pdb')))[:1]
+        if not pdb_files:
+            self.skipTest("No sample structures available to generate prediction features")
+
+        input_list = os.path.join(temp_dir, 'predict_inputs.dat')
+        with open(input_list, 'w') as f:
+            f.write('\n'.join(pdb_files))
+
+        fg = aqdnet.FeatureGenerator(**fg_params)
+        dataset = fg.generate(input_list, mode='complex', num_cpu=1)
+
+        feature_csv = os.path.join(temp_dir, 'generated_predict_features.csv')
+        dataset.to_csv(feature_csv, index=False)
+        return feature_csv
     
     def test_model_params_loading(self):
         """Test that model parameters can be loaded"""
@@ -116,7 +161,87 @@ class TestModelPipeline(unittest.TestCase):
         self.assertIn('model_class_name', params)
         self.assertIn('fg_params', params)
         self.assertIn('model_params', params)
-    
+
+    def test_predict_with_mock_model_when_real_weights_are_missing(self):
+        """Fall back to a mocked prediction path when real model weights are unavailable."""
+        if self._has_real_model_artifact('Docking_Energy30RMSD2.5'):
+            self.skipTest("Real docking model artifacts are available; mock fallback is not needed.")
+
+        with tempfile.TemporaryDirectory(prefix='aqdnet_mock_predict_') as temp_dir:
+            model_dir = os.path.join(temp_dir, 'mock_model')
+            os.makedirs(model_dir)
+            shutil.copyfile(
+                os.path.join(os.path.dirname(__file__), 'mock_model', 'params_for_predict.json'),
+                os.path.join(model_dir, 'params_for_predict.json'),
+            )
+
+            model_file = os.path.join(model_dir, 'best_model.h5')
+            with open(model_file, 'w') as f:
+                f.write('mock model placeholder')
+
+            features_file = os.path.join(temp_dir, 'features.csv')
+            pd.DataFrame({'f0': [0.1], 'f1': [0.2]}).to_csv(features_file, index=False)
+
+            output_file = os.path.join(temp_dir, 'predictions.csv')
+            args = SimpleNamespace(
+                model=model_dir,
+                features=features_file,
+                output=output_file,
+                cuda='-1',
+            )
+
+            mock_prediction = pd.DataFrame({'prediction': [0.42]})
+            with mock.patch.object(commands, 'parse_params_json') as parse_mock, \
+                 mock.patch.object(commands, 'get_model_class', return_value=ElementwiseDNN), \
+                 mock.patch.object(commands, 'ModelByTensorflow') as model_cls:
+                parse_mock.return_value = {
+                    'model_class_name': 'ElementwiseDNN',
+                    'model_params': {},
+                }
+                model_instance = model_cls.return_value
+                model_instance.predict.return_value = mock_prediction
+
+                commands.predict_command(args)
+
+            self.assertTrue(os.path.exists(output_file))
+            preds = pd.read_csv(output_file)
+            self.assertEqual(preds.shape, (1, 2))
+            self.assertIn('prediction', preds.columns)
+            self.assertAlmostEqual(preds['prediction'].iloc[0], 0.42)
+            model_instance.load_model.assert_called_once_with(model_file)
+
+    def test_predict_with_real_docking_model_if_available(self):
+        """Run the prediction command with the docking model when weights are present."""
+        self._run_real_model_prediction_if_available('Docking_Energy30RMSD2.5')
+
+    def _run_real_model_prediction_if_available(self, model_name):
+        model_dir = self._model_dir(model_name)
+        params_file = os.path.join(model_dir, 'params_for_predict.json')
+        model_file = os.path.join(model_dir, 'best_model.h5')
+        if not os.path.exists(params_file) or not os.path.exists(model_file):
+            self.skipTest(f"Real model artifacts not available for {model_name}")
+
+        with tempfile.TemporaryDirectory(prefix='aqdnet_real_predict_') as temp_dir:
+            params = commands.parse_params_json(params_file)
+            feature_csv = self._generate_feature_csv_for_prediction(
+                temp_dir,
+                params['fg_params'],
+            )
+
+            output_file = os.path.join(temp_dir, f'{model_name}_predictions.csv')
+            args = SimpleNamespace(
+                model=model_dir,
+                features=feature_csv,
+                output=output_file,
+                cuda='-1',
+            )
+
+            commands.predict_command(args)
+
+            self.assertTrue(os.path.exists(output_file))
+            preds = pd.read_csv(output_file)
+            self.assertGreater(len(preds), 0)
+
     def test_model_class_instantiation(self):
         """Test that ElementwiseDNN model class can be instantiated with default params"""
         # Use minimal parameters - ElementwiseDNN has many but mostly have defaults
@@ -140,29 +265,52 @@ class TestCLIInterface(unittest.TestCase):
     
     def test_cli_commands_available(self):
         """Test that CLI commands are properly defined"""
-        try:
-            from aqdnet_cli import commands
-            self.assertTrue(hasattr(commands, 'featurize_command'))
-            self.assertTrue(hasattr(commands, 'predict_command'))
-        except ImportError:
-            self.skipTest("aqdnet_cli not installed in test environment")
+        self.assertTrue(hasattr(commands, 'featurize_command'))
+        self.assertTrue(hasattr(commands, 'predict_command'))
+        self.assertTrue(hasattr(commands, 'demo_command'))
+
+    def test_console_entry_point_exports_main(self):
+        """Test that the package exports the main CLI function."""
+        import aqdnet_cli
+
+        self.assertTrue(hasattr(aqdnet_cli, 'main'))
+        self.assertTrue(callable(aqdnet_cli.main))
+
+    def test_cli_featurize_subprocess_on_nested_input(self):
+        """Test the CLI entry point against a nested sample input directory."""
+        sample_root = os.path.join(os.path.dirname(__file__), '..', 'sample_structures')
+        source_pdb = sorted(glob.glob(os.path.join(sample_root, '**', '*.pdb'), recursive=True))[0]
+
+        with tempfile.TemporaryDirectory(prefix='aqdnet_cli_test_') as temp_dir:
+            nested_dir = os.path.join(temp_dir, 'nested', 'sample')
+            os.makedirs(nested_dir)
+            copied_pdb = os.path.join(nested_dir, os.path.basename(source_pdb))
+            shutil.copyfile(source_pdb, copied_pdb)
+
+            output_csv = os.path.join(temp_dir, 'features.csv')
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    '-m',
+                    'aqdnet_cli',
+                    'featurize',
+                    '--input',
+                    temp_dir,
+                    '--output',
+                    output_csv,
+                    '--ligand-code',
+                    'LGD',
+                    '--num-cpu',
+                    '1',
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertTrue(os.path.exists(output_csv), msg=result.stderr)
 
 
 if __name__ == '__main__':
-    unittest.main()
-
-    
-    def test_cli_commands_available(self):
-        """Test that CLI commands are properly defined"""
-        try:
-            from aqdnet_cli import commands
-            self.assertTrue(hasattr(commands, 'featurize_command'))
-            self.assertTrue(hasattr(commands, 'predict_command'))
-            self.assertTrue(hasattr(commands, 'demo_command'))
-        except ImportError:
-            self.skipTest("aqdnet_cli not installed in test environment")
-
-
-if __name__ == '__main__':
-    # Run tests
     unittest.main(verbosity=2)

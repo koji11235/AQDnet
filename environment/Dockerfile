@@ -8,6 +8,9 @@ LABEL description="AQDnet: Deep Neural Network for Protein-Ligand Docking and Sc
 
 WORKDIR /workspace
 
+# Clear files inherited from the base image so /workspace matches this repo snapshot
+RUN find /workspace -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
 # Copy repository files
 COPY . /workspace/
 
