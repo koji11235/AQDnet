@@ -30,8 +30,10 @@ This research was motivated by limitations in traditional scoring functions for 
 ```
 AQDnet/
 ├── README.md                          # This file
-├── environment.yml                    # Conda environment specification
-├── requirements.txt                   # Pip dependency list
+├── environment/                       # Docker & dependency files
+│   ├── Dockerfile                     # Container specification
+│   ├── environment.yml                # Conda environment specification
+│   └── requirements.txt               # Pip dependency list
 ├── scripts/                           # Core implementation
 │   ├── aqdnet.py                      # Feature extraction interface
 │   ├── lpcomp.py                      # Ligand-protein complex utilities
@@ -86,11 +88,11 @@ docker run --rm -it \
 
 ```bash
 # Create conda environment
-conda env create -f environment.yml
+conda env create -f environment/environment.yml
 conda activate aqdnet
 
 # Or via pip
-pip install -r requirements.txt
+pip install -r environment/requirements.txt
 ```
 
 **Requirements:**

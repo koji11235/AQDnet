@@ -145,8 +145,8 @@ Release notes:
 
 ### 🔧 Installation
 - Docker: `docker pull koji11235/aqdnet_env:v0.1.0`
-- Local: `conda env create -f environment.yml`
-- Pip: `pip install -r requirements.txt`
+- Local: `conda env create -f environment/environment.yml`
+- Pip: `pip install -r environment/requirements.txt`
 
 ### 📝 Usage
 ```bash

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI Interface** (`aqdnet_cli` package): User-friendly command-line tools for feature extraction, model training, prediction, and demo
 - **Setup Automation** (`setup.py`): Package installation support for easier distribution
 - **Test Suite** (`tests/test_smoke.py`): 8 basic unit tests covering core workflows
-- **Environment Files**: `environment.yml` and `requirements.txt` for reproducible Python setup
+- **Environment Files**: `environment/environment.yml` and `environment/requirements.txt` for reproducible Python setup
 - **Docker Support**: Full Dockerfile for containerized, dependency-locked execution
 - **Improved Documentation**:
   - Comprehensive README with structure, installation, and quick start guides

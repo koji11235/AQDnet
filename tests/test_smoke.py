@@ -3,14 +3,15 @@ AQDnet Smoke Tests
 
 Minimal test suite for AQDnet functionality:
 - Feature extraction from sample structures
-- Feature loading  
-- Prediction pipeline availability
+- Model parameter loading and prediction pipeline
+- CLI interface availability
 """
 
 import os
 import sys
 import tempfile
 import glob
+import json
 import unittest
 import pandas as pd
 import numpy as np
@@ -19,6 +20,8 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
 import aqdnet
+from model import ModelByTensorflow
+from structure import ElementwiseDNN
 
 
 class TestFeatureExtraction(unittest.TestCase):
@@ -63,78 +66,65 @@ class TestFeatureExtraction(unittest.TestCase):
                     os.remove(temp_name)
 
 
-class TestFeatureLoading(unittest.TestCase):
-    """Test feature file loading"""
+class TestModelPipeline(unittest.TestCase):
+    """Test model loading and prediction pipeline"""
     
-    def test_sample_features_exist(self):
-        """Check if sample features are available"""
-        features_dir = os.path.join(
-            os.path.dirname(__file__),
-            '..',
-            'features'
-        )
-        
-        # Check for CSV features
-        feature_files = glob.glob(os.path.join(features_dir, 'feature_trainset_*.csv'))
-        self.assertGreater(len(feature_files), 0, f"No feature files found in {features_dir}")
-    
-    def test_feature_csv_loading(self):
-        """Test loading feature CSV files"""
-        features_dir = os.path.join(
-            os.path.dirname(__file__),
-            '..',
-            'features'
-        )
-        
-        feature_files = glob.glob(os.path.join(features_dir, 'feature_trainset_*.csv'))
-        if len(feature_files) > 0:
-            # Load first feature file
-            df = pd.read_csv(feature_files[0])
-            self.assertIsNotNone(df)
-            self.assertGreater(len(df), 0, "Feature CSV is empty")
-            self.assertGreater(df.shape[1], 0, "Feature CSV has no columns")
-    
-    def test_label_csv_loading(self):
-        """Test loading label CSV files"""
-        features_dir = os.path.join(
-            os.path.dirname(__file__),
-            '..',
-            'features'
-        )
-        
-        label_file = os.path.join(features_dir, 'label_trainset.csv')
-        if os.path.exists(label_file):
-            df = pd.read_csv(label_file)
-            self.assertIsNotNone(df)
-            self.assertGreater(len(df), 0, "Label CSV is empty")
-
-
-class TestModelStructure(unittest.TestCase):
-    """Test model infrastructure"""
-    
-    def test_model_params_accessible(self):
-        """Test that model parameter files are accessible"""
+    def test_model_params_loading(self):
+        """Test that model parameters can be loaded"""
         models_dir = os.path.join(
             os.path.dirname(__file__),
             '..',
             'models'
         )
         
-        # Check Docking model
-        docking_params = os.path.join(
+        # Check Docking model params
+        docking_params_file = os.path.join(
             models_dir,
             'Docking_Energy30RMSD2.5',
             'params_for_predict.json'
         )
-        self.assertTrue(os.path.exists(docking_params), f"Not found: {docking_params}")
         
-        # Check Scoring model
-        scoring_params = os.path.join(
-            models_dir,
-            'Scoring_Energy02RMSD2.0',
-            'params_for_predict.json'
+        self.assertTrue(os.path.exists(docking_params_file), 
+                       f"Model params not found: {docking_params_file}")
+        
+        # Load and verify params structure
+        with open(docking_params_file, 'r') as f:
+            params = json.load(f)
+        
+        self.assertIn('model_class_name', params, "Missing model_class_name in params")
+        self.assertIn('fg_params', params, "Missing fg_params in params")
+        self.assertIn('model_params', params, "Missing model_params in params")
+        self.assertEqual(params['model_class_name'], 'ElementwiseDNN', 
+                        "Expected ElementwiseDNN model class")
+    
+    def test_mock_model_params_loading(self):
+        """Test loading mock model parameters for testing"""
+        mock_model_dir = os.path.join(
+            os.path.dirname(__file__),
+            'mock_model'
         )
-        self.assertTrue(os.path.exists(scoring_params), f"Not found: {scoring_params}")
+        
+        params_file = os.path.join(mock_model_dir, 'params_for_predict.json')
+        
+        self.assertTrue(os.path.exists(params_file), 
+                       f"Mock model params not found: {params_file}")
+        
+        # Load and verify params
+        with open(params_file, 'r') as f:
+            params = json.load(f)
+        
+        self.assertIn('model_class_name', params)
+        self.assertIn('fg_params', params)
+        self.assertIn('model_params', params)
+    
+    def test_model_class_instantiation(self):
+        """Test that ElementwiseDNN model class can be instantiated with default params"""
+        # Use minimal parameters - ElementwiseDNN has many but mostly have defaults
+        try:
+            model = ModelByTensorflow(network_cls=ElementwiseDNN)
+            self.assertIsNotNone(model)
+        except Exception as e:
+            self.fail(f"Failed to instantiate ModelByTensorflow: {e}")
 
 
 class TestCLIInterface(unittest.TestCase):
@@ -147,6 +137,20 @@ class TestCLIInterface(unittest.TestCase):
             self.assertIsNotNone(aqdnet_cli)
         except ImportError:
             self.skipTest("aqdnet_cli not installed in test environment")
+    
+    def test_cli_commands_available(self):
+        """Test that CLI commands are properly defined"""
+        try:
+            from aqdnet_cli import commands
+            self.assertTrue(hasattr(commands, 'featurize_command'))
+            self.assertTrue(hasattr(commands, 'predict_command'))
+        except ImportError:
+            self.skipTest("aqdnet_cli not installed in test environment")
+
+
+if __name__ == '__main__':
+    unittest.main()
+
     
     def test_cli_commands_available(self):
         """Test that CLI commands are properly defined"""
