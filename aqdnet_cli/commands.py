@@ -64,6 +64,9 @@ def resolve_model_paths(model_dir):
 def load_feature_csv(csv_file):
     """Load a feature CSV and preserve serialized index columns when present."""
     dataset = pd.read_csv(csv_file)
+    if 'input_path' in dataset.columns:
+        logging.info("Using input_path column from features as index")
+        dataset = dataset.set_index('input_path')
     unnamed_columns = [col for col in dataset.columns if str(col).startswith('Unnamed:')]
     if unnamed_columns:
         index_column = unnamed_columns[0]
@@ -166,7 +169,6 @@ def predict_command(args):
     # Parse parameters
     params = parse_params_json(params_file)
     model_class_name = params['model_class_name']
-    fg_params = params['fg_params']
     model_params = params['model_params']
     
     model_class = get_model_class(model_class_name)
@@ -175,6 +177,7 @@ def predict_command(args):
     if os.path.isdir(args.features) or (
         os.path.isfile(args.features) and args.features.lower().endswith('.pdb')
     ):
+        fg_params = params['fg_params']
         logging.info("Generating features from PDB input...")
         dataset = generate_feature_dataset(args.features, fg_params, args.num_cpu)
     elif os.path.isfile(args.features):
