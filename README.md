@@ -11,7 +11,7 @@ This repository provides a research workflow for:
 - feature extraction
 - model training
 - prediction
-- benchmark evaluation on CASF-2016 and LIT-PCBA
+- benchmark evaluation on CASF-2016
 
 <img src="./images/SchematicAbstract.png" alt="AQDnet Overview">
 
@@ -294,8 +294,6 @@ The representation was designed to:
 - incorporate interaction information beyond simple two-body contacts
 - remain invariant to rotation/translation and atom ordering
 - support fast DNN-based inference once features are extracted
-
-If you are reviewing this repository for code quality or modeling choices, this is one of the most important components to inspect.
 
 <img src="./images/AQDnet_Feature_Composition.png" alt="AQDnet_Feature_Composition">
 
