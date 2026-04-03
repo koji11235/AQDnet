@@ -282,48 +282,6 @@ Use `02_train_model.ipynb` for actual model fitting and benchmark reproduction.
 
 ---
 
-## Feature Extraction Concept
-
-AQDnet uses a handcrafted feature extraction process based on an ACSF-inspired representation of the protein–ligand complex.
-
-This part is important because the feature representation is one of the core scientific ideas of the project.
-
-The representation was designed to:
-
-- preserve geometric sensitivity to small coordinate differences
-- incorporate interaction information beyond simple two-body contacts
-- remain invariant to rotation/translation and atom ordering
-- support fast DNN-based inference once features are extracted
-
-<img src="./images/AQDnet_Feature_Composition.png" alt="AQDnet_Feature_Composition">
-
-<img src="./images/AQDnet_Feature_Extraction_Algorithm.png" alt="AQDnet_Feature_Extraction_Algorithm">
-
-
----
-
-## Model Architecture
-
-AQDnet uses a deep neural network trained on the extracted tabular features.
-
-The model design should be read together with the feature extraction strategy:
-
-- the feature extractor is responsible for encoding the 3D interaction geometry
-- the DNN is responsible for learning the relationship between those features and docking/scoring-related labels
-
-This architecture reflects a deliberate design choice:
-
-- **feature engineering first**
-- **compact neural model second**
-
-rather than end-to-end graph learning.
-
-That decision made sense for the original project goals, especially for fast experimentation and docking-oriented evaluation, even though later projects may prefer graph-based approaches for greater expressiveness.
-
-<img src="./images/AQDnet Model Architecture.png" alt="AQDnet Model Architecture">
-
-
----
 
 ## Example Workflow
 
@@ -393,6 +351,49 @@ INPUT DATA
 
 ---
 
+## Feature Extraction Concept
+
+AQDnet uses a handcrafted feature extraction process based on an ACSF-inspired representation of the protein–ligand complex.
+
+This part is important because the feature representation is one of the core scientific ideas of the project.
+
+The representation was designed to:
+
+- preserve geometric sensitivity to small coordinate differences
+- incorporate interaction information beyond simple two-body contacts
+- remain invariant to rotation/translation and atom ordering
+- support fast DNN-based inference once features are extracted
+
+<img src="./images/AQDnet_Feature_Composition.png" alt="AQDnet_Feature_Composition">
+
+<img src="./images/AQDnet_Feature_Extraction_Algorithm.png" alt="AQDnet_Feature_Extraction_Algorithm">
+
+
+---
+
+## Model Architecture
+
+AQDnet uses a deep neural network trained on the extracted tabular features.
+
+The model design should be read together with the feature extraction strategy:
+
+- the feature extractor is responsible for encoding the 3D interaction geometry
+- the DNN is responsible for learning the relationship between those features and docking/scoring-related labels
+
+This architecture reflects a deliberate design choice:
+
+- **feature engineering first**
+- **compact neural model second**
+
+rather than end-to-end graph learning.
+
+That decision made sense for the original project goals, especially for fast experimentation and docking-oriented evaluation, even though later projects may prefer graph-based approaches for greater expressiveness.
+
+<img src="./images/AQDnet Model Architecture.png" alt="AQDnet Model Architecture">
+
+
+---
+
 ## Results Summary
 
 ### CASF-2016
@@ -420,7 +421,7 @@ See the CSV files in `results/` for detailed metrics.
 ### What Is Reproducible
 - Feature extraction from PDB structures
 - Prediction on new structures
-- Evaluation code for CASF-2016 and LIT-PCBA
+- Evaluation code for CASF-2016
 - Research workflow demonstration through notebooks and provided artifacts
 
 ### What Requires External Files
