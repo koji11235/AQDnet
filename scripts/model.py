@@ -1,43 +1,10 @@
 from abc import ABCMeta, abstractmethod
 import os
-import numpy as np
 import pandas as pd
-import dask.dataframe as ddf
-from dask.diagnostics import ProgressBar
-import joblib
-from tqdm import tqdm
-from sklearn.preprocessing import StandardScaler
-from sklearn import linear_model
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import r2_score
-
-from tensorflow.keras.layers import Input
-from tensorflow.keras.layers import Conv2D
-from tensorflow.keras.layers import Activation
-from tensorflow.keras.layers import Flatten
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import concatenate
-from tensorflow.keras.regularizers import l2
-from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.callbacks import CSVLogger
-from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.data import TFRecordDataset
 
 import tensorflow as tf
-
-from tensorflow_addons.layers import SpectralNormalization
-
-import logging
-import multiprocessing
-import itertools
-import matplotlib.pyplot as plt
-from matplotlib import cm
-import seaborn as sns
-import palettable
-
-import runner
 
 ##################################################################################
 ###################            Meta classes                    ###################
@@ -534,5 +501,4 @@ class ModelByTensorflow(MyAbstractModel):
         self.is_model_loaded = True
         
         return self
-
 

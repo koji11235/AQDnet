@@ -5,7 +5,6 @@ import seaborn as sns
 import palettable
 
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error
 from scipy.stats import pearsonr
 
@@ -59,66 +58,6 @@ def lmplot_label2prediction(extonionnet_object, label='pKa', prediction='pKa_pre
     ax.set_ylabel(ylabel)
 
     return ax 
-
-
-def pieplot_dataset(y_file, output, annotations=["Training", "Validation", "Untrained"], 
-                          ligand2protein_file="../Data/ligand2protein.csv"):
-    
-    ligand2protein = pd.read_csv(ligand2protein_file, index_col=0)
-    y = pd.read_csv(y_file, index_col=0)
-    # y["Ligand"] = [idx[:-5] for idx in y.index]
-    y = pd.merge(y, ligand2protein, on='Ligand')
-    y_protein_grouped_size = y.groupby(by=["Protein"], as_index=True).size().sort_index(ascending=True, level="Protein")
-    y_ligand_grouped_size = y.groupby(by=["Protein","Ligand"], as_index=True).size().sort_index(ascending=True, level="Protein")
-
-
-    protein_size = y_protein_grouped_size.values
-    protein_index = y_protein_grouped_size.index
-    protein_label = [protein+"\n"+str(size) for  protein, size in zip(protein_index, protein_size)]
-
-    ligand_size = y_ligand_grouped_size.values
-    ligand_index = y_ligand_grouped_size.index
-    ligand_label = [lig+"\n"+str(size) for (protein, lig), size in zip(ligand_index, ligand_size)]
-
-    nligand_per_protein_list = collections.Counter([protein for protein, ligand in y_ligand_grouped_size.index]).values()
-    ligand_colors = [cm.Set2(ligand_color/len(nligand_per_protein_list), alpha=1-ligand_color/6) 
-                        for ligand_color, num_lig in enumerate(nligand_per_protein_list) 
-                            for ligand_color in range(1, num_lig+1)]
-    protein_colors = [cm.Set2(protein_color/len(nligand_per_protein_list), alpha=1) 
-                        for protein_color, num_lig in enumerate(nligand_per_protein_list)]
-
-    ax = fig.add_subplot(1, 3, i+1)
-    ax.axis('equal')
-
-    pie_protein, texts_protein = ax.pie(x=protein_size, labels=protein_label, colors=protein_colors,
-                                        radius=1.2, labeldistance=1.1, startangle=90, counterclock=False)
-    for t in texts_protein:
-        t.set_horizontalalignment('center')
-        t.set_linespacing(1.5)
-    plt.setp( pie_protein, width=0.3, edgecolor='white')
-
-    pie_ligand, texts_ligand = ax.pie(ligand_size,  labels=ligand_label, colors=ligand_colors,
-                                        radius=1.2-0.3, labeldistance=0.8,  startangle=90, counterclock=False)
-    for t in texts_ligand:
-        t.set_horizontalalignment('center')
-        t.set_linespacing(1.5)
-    plt.setp(pie_ligand, width=0.4, edgecolor='white')
-    plt.margins(0,0)
-    ax.text(0, 0, f"{annotation}\nTotal: {ligand_size.sum()}", fontsize=16, linespacing = 3, ha='center', va='center')
-
-    fig.savefig(output, format="png", dpi=600)
-
-def prepare_piechart_layer1(data, groupby=['Protein']):
-    grouped_size = data.groupby(by=groupby, as_index=True).size().sort_index(ascending=True, level=groupby[0])
-    size = grouped_size.values
-    index = grouped_size.index
-    label = [idx+"\n"+str(size) for  idx, size in zip(index, size)]
-    colors = [cm.Set2(color/len(index), alpha=1) for color in range(len(index))]
-    return size, label, color 
-
-
-
-
 
 
 def lmplot(data, x='pKa', y='pKa_predicted', hue=None, color=None, label=None, c=None, alpha=0.3,

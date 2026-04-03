@@ -8,11 +8,9 @@ import dask.dataframe as ddf
 from dask.diagnostics import ProgressBar
 
 from sklearn.model_selection import KFold
-from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import GroupKFold
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
 
 from datetime import datetime 
 from pytz import timezone

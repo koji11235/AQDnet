@@ -1,18 +1,8 @@
-# import os
-# import sys
 import tempfile
 import itertools
-# import logging
-# import warnings
-# import multiprocessing
-# from collections import OrderedDict
-# from collections import defaultdict
-# from collections import Counter
 
 import numpy as np
 import pandas as pd
-# import dask.dataframe as ddf
-# from dask.diagnostics import ProgressBar
 import mdtraj as mt
 from biopandas.pdb import PandasPdb
 from numba import vectorize, float64
@@ -292,7 +282,6 @@ class LigandProteinComplex(object):
         feature_value = element_x_rs.reshape(-1)
 
         return feature_name, feature_value
-
     @staticmethod
     def angular_symmetry_function(Rij, Rik, theta_ijk, theta, Rs = 1, Rc=6, zeta=8, eta=4):
         # Rij = Rij_nm * 10
@@ -644,13 +633,3 @@ class LigandProteinComplex(object):
         feature_value = element_x_thetas_x_Rs.reshape(-1)
 
         return feature_name, feature_value
-
-
-class ExpOnionNet(LigandProteinComplex):
-    def __init__(self, pdb_file, lig_code="LGD", target_elements=["H", "C", "N", "O", "P", "S", "Cl", "DU"]):
-        super().__init__(pdb_file, lig_code=lig_code, target_elements=target_elements,)
-        return None
-
-    def generate_feature():
-
-        return None

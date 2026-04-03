@@ -14,13 +14,15 @@ from lpcomp import LigandProteinComplex
 import runner
 
 class FeatureGenerator(object):
+    """Generate AQDnet features from ligand-protein complex PDB files."""
+
     def __init__(self, lig_code="LGD",
                  distance_threshold_radial=4, distance_threshold_angular=4,
                  target_elements=["H", "C", "N", "O", "P", "S", "Cl", "DU"],
                  Rs_list_radial=[0.5, 1.17, 1.83, 2.5, 3.17, 3.83, 4.5, 5.17],
                  Rs_list_angular=[0.5, 1.17, 1.83, 2.5, 3.17, 3.83, 4.5, 5.17],
                  theta_list=[0, 0.785, 1.57, 2.355, 3.14, 3.925, 4.71, 5.495]):
-                 
+        """Initialize feature-generation hyperparameters."""
         self.pdb_files = []
         self.lig_code = lig_code
         self.target_elements = target_elements
@@ -33,6 +35,7 @@ class FeatureGenerator(object):
         return None
 
     def get_params(self):
+        """Return the current generator parameters as a dictionary."""
         # return dict(distance_threshold=self.distance_threshold,
         #         target_elements=self.target_elements,
         #         Rs_list_radial=self.Rs_list_radial,
@@ -41,6 +44,7 @@ class FeatureGenerator(object):
         return self.__dict__
 
     def _generate_feature_name(self, pdb_file, mode='complex', source='onionnet'):
+        """Generate feature-column names for a representative input structure."""
         cplx = LigandProteinComplex(
             pdb_file, 
             lig_code=self.lig_code,
@@ -61,6 +65,7 @@ class FeatureGenerator(object):
         return radial_feature_name, angular_feature_name
 
     def _generate_feature(self, pdb_file, source='onionnet'):
+        """Generate radial and angular complex features for one PDB file."""
 
         cplx = LigandProteinComplex(
             pdb_file, 
@@ -79,6 +84,7 @@ class FeatureGenerator(object):
         return radial_feature_value, angular_feature_value
 
     def _wrapped_generate_feature(self, kwargs):
+        """Wrapper that logs per-file feature generation progress."""
         pdb_file = kwargs['pdb_file']
         logging.debug(f"{pdb_file}: started")
         radial_feature_value, angular_feature_value = self._generate_feature(
@@ -87,11 +93,13 @@ class FeatureGenerator(object):
         return radial_feature_value, angular_feature_value
 
     def _wrapped_generate_feature_for_tqdm(self, kwargs):
+        """Wrapper used with multiprocessing and `tqdm` progress bars."""
         radial_feature_value, angular_feature_value = self._generate_feature(
             **kwargs)
         return radial_feature_value, angular_feature_value
 
     def _generate_ligand_feature(self, pdb_file, source='onionnet'):
+        """Generate radial and angular ligand-only features for one PDB file."""
         cplx = LigandProteinComplex(
             pdb_file, 
             lig_code=self.lig_code,
@@ -109,11 +117,23 @@ class FeatureGenerator(object):
         return radial_feature_value, angular_feature_value
 
     def _wrapped_generate_ligand_feature_for_tqdm(self, kwargs):
+        """Wrapper for ligand-only feature generation with `tqdm`."""
         radial_feature_value, angular_feature_value = self._generate_ligand_feature(
             **kwargs)
         return radial_feature_value, angular_feature_value
 
     def generate(self, input_file, mode='complex', num_cpu=1, source='onionnet'):
+        """Generate features from PDB paths listed in `input_file`.
+
+        Args:
+            input_file: Text file containing one PDB path per line.
+            mode: Feature type to generate. Must be `'complex'` or `'ligand'`.
+            num_cpu: Number of worker processes used for feature generation.
+            source: Parser mode forwarded to `LigandProteinComplex.parsePDB`.
+
+        Returns:
+            MyDataFrame: Feature matrix indexed by input PDB path.
+        """
 
         # set logging config during multiprocessing ----------------------------------------------------------
         logging.basicConfig(level=logging.DEBUG,
@@ -159,10 +179,13 @@ class FeatureGenerator(object):
 
 
 class MyDataFrame(pd.DataFrame):
+    """Thin `pandas.DataFrame` subclass with AQDnet export helpers."""
+
     def __init__(self, data=None, index=None, columns=None, dtype=None, copy=False):
         super().__init__(data=data, index=index, columns=columns, dtype=dtype, copy=copy)
 
     def to_csv_parallelized(self, output_file, single_file=False, npartitions=10, scheduler='processes'):
+        """Write the dataframe as CSV with Dask-backed parallelization."""
         with ProgressBar():
             print_sentence = "Saving the dataset in a csv file" if single_file else "Saving the dataset in csv files"
             print(print_sentence)
@@ -178,6 +201,7 @@ class MyDataFrame(pd.DataFrame):
 
     @staticmethod
     def feature2example(complex_feature, label, sample_id):
+        """Convert one sample into a serialized TF Example schema."""
         return tf.train.Example(features=tf.train.Features(feature={
             'feature': _float_feature(complex_feature),
             'label': _float_feature(label),
@@ -185,6 +209,11 @@ class MyDataFrame(pd.DataFrame):
         }))
 
     def __to_tfrecords(self, output_file, label, label_colnames=['pKa']):
+        """Write features and labels to a TFRecord file.
+
+        Notes:
+            This method is marked as deprecated in the original implementation.
+        """
         # depreciated: tfrecords files generated by this function cause unknown error below.
         # InvalidArgumentError: Feature: complex_feature (data type: float) is required but could not be found. [[{{node ParseSingleExample/ParseExample/ParseExampleV2}}]]
 
@@ -226,6 +255,7 @@ class MyDataFrame(pd.DataFrame):
 
 
 def to_csv_parallelized(df, output_file, single_file=False, npartitions=10):
+    """Write a dataframe to CSV files with Dask parallelization."""
     with ProgressBar():
         print_sentence = "Saving the dataset in a csv file" if single_file else "Saving the dataset in csv files"
         print(print_sentence)
@@ -240,16 +270,17 @@ def to_csv_parallelized(df, output_file, single_file=False, npartitions=10):
     return None
 
 def _float_feature(value):
-        """return float_list from float / double """
-        return tf.train.Feature(float_list=tf.train.FloatList(value=value))
+    """Build a TF float feature from an iterable of numeric values."""
+    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 def _bytes_feature(value):
-    """return byte_list from string / byte """
+    """Build a TF bytes feature from a byte string or eager tensor."""
     if isinstance(value, type(tf.constant(0))):
         value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 def csv_to_tfrecords(feature_csv_files, label_file, output_file, label_colnames=['pKa'], sample=370000):
+    """Convert feature CSV shards and labels into a single TFRecord file."""
     feature = runner.load_feature(feature_csv_files, sample=sample).astype('float32')
     label = runner.load_label(label_file, label_colnames=label_colnames).astype('float32')
 
@@ -279,6 +310,7 @@ def csv_to_tfrecords(feature_csv_files, label_file, output_file, label_colnames=
     return None
 
 def bothfeature2example(cmp_feature, lig_feature, label, sample_id):
+    """Convert complex and ligand features for one sample into a TF Example."""
     return tf.train.Example(features=tf.train.Features(feature={
         'cmp_feature': _float_feature(cmp_feature),
         'lig_feature': _float_feature(lig_feature),
@@ -290,6 +322,7 @@ def bothfeature2example(cmp_feature, lig_feature, label, sample_id):
 #     return tf.train.Example(features=tf.train.Features(feature=feature_dict))
 
 def record2example(cmp_feature, label, sample_id):
+    """Convert one complex-feature sample into a TF Example."""
     return tf.train.Example(features=tf.train.Features(feature={
         'complex_feature': _float_feature(cmp_feature),
         'label': _float_feature(label),
@@ -297,20 +330,27 @@ def record2example(cmp_feature, label, sample_id):
     }))
 
 def generate_feature(input_file, output_files, mode='complex', num_cpu=1, source='onionnet'):
+    """Generate features from an input list and save them as CSV."""
     fg = FeatureGenerator()
     dataset = fg.generate(input_file, mode=mode, num_cpu=num_cpu, source=source)
     dataset.to_csv_parallelized(output_files)
     return dataset
 
 def get_basename_without_extention(index):
+    """Return file basenames without extensions for each input path."""
     return [os.path.splitext(os.path.basename(path))[0] for path in index]
 
 def get_pdbid(index):
+    """Extract PDB IDs from AQDnet complex filenames."""
     return [os.path.splitext(os.path.basename(path))[0].replace('_complex', '') for path in index]
 
 def generate_both_feature_to_tfrecords(input_file, label, output_tfrecords_file, 
                                         output_cmp_csv=None, output_lig_csv=None, 
                                         num_cpu=1, source='onionnet', index_process_fn=None):
+    """Generate complex and ligand features, then save them to TFRecord.
+
+    Optionally writes the intermediate complex and ligand feature CSV files.
+    """
     if index_process_fn is None:
         index_process_fn = get_basename_without_extention
 
@@ -359,18 +399,16 @@ def generate_both_feature_to_tfrecords(input_file, label, output_tfrecords_file,
     return None
 
 def glob_re(strings, pattern):
+    """Filter strings by a regular-expression pattern."""
     return list(filter(re.compile(pattern).match, strings))
 
 def make_generate_inputfile(directory, filename, pattern="\w{4}_complex.pdb$"):
-    """[summary]
+    """Create a text file listing PDB files that match `pattern`.
 
     Args:
-        directory ([type]): [description]
-        filename ([type]): [description]
-        pattern (str, optional): [description]. Defaults to "\w{4}_complex.pdb$".
-
-    Returns:
-        [type]: [description]
+        directory: Directory to search for input PDB files.
+        filename: Output text file that will contain one path per line.
+        pattern: Regular expression matched against candidate paths.
 
     Examples:
         >>> directory = '../1.Input/test_CASF2013_coreset/'
@@ -385,6 +423,7 @@ def make_generate_inputfile(directory, filename, pattern="\w{4}_complex.pdb$"):
     return None 
 
 def mother_params_to_fg_params(mother_params):
+    """Convert a high-level parameter dict into `FeatureGenerator` kwargs."""
 
     distance_threshold_radial = mother_params['distance_threshold_radial']
     distance_threshold_angular = mother_params['distance_threshold_angular']
@@ -414,6 +453,7 @@ def mother_params_to_fg_params(mother_params):
     return fg_params
     
 def get_default_param():
+    """Return the default feature-generation parameter set."""
     default_param = dict(
         distance_threshold_radial=4, 
         distance_threshold_angular=4,

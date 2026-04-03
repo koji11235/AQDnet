@@ -4,12 +4,7 @@ import glob
 import tempfile
 import json
 from argparse import ArgumentParser
-from argparse import RawDescriptionHelpFormatter
 from argparse import RawTextHelpFormatter
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-from tqdm import tqdm
 import aqdnet
 from model import ModelByTensorflow
 from structure import ElementwiseDNN
@@ -89,8 +84,8 @@ Column Discription:
                         """)
     
     parser.add_argument("-model",'--model_dir_path', type=str, default='./',
-                        help="""Trained model path. Make a prediction with the model specified by this argument. 
-In this model directory, 'params_for_prediction.json' must be placed. 
+                        help="""Trained model path. Make a prediction with the model specified by this argument.
+In this model directory, 'params_for_predict.json' must be placed.
                         """)
     
     parser.add_argument("-num_cpu", type=int, default=2,

@@ -1,38 +1,15 @@
-# import os
-# from sklearn.externals import joblib
-
-
-# class Util:
-
-#     @classmethod
-#     def dump(cls, value, path):
-#         os.makedirs(os.path.dirname(path), exist_ok=True)
-#         joblib.dump(value, path, compress=True)
-
-#     @classmethod
-#     def load(cls, path):
-#         return joblib.load(path)
-
-
 import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
-import palettable
 
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
-from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import LabelEncoder
 
 import os
 
 import runner
-
-
-
 
 def save_runner_result(runner, result, output_dir):
     model_and_log_path_filepath = os.path.join(output_dir, 'model_and_log_paths.csv')

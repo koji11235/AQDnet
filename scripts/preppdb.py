@@ -1,8 +1,4 @@
-import sys
 import os
-import numpy as np
-import pandas as pd
-from collections import defaultdict
 from openbabel import pybel
 from multiprocessing import Pool
 from tqdm import tqdm
@@ -395,4 +391,3 @@ def prepare_screening_decoys_parallelized(
             total=len(_prepare_screening_decoy_pdb_args)
         ))
     return None
-

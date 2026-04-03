@@ -2,12 +2,9 @@ from abc import ABCMeta
 from abc import abstractmethod
 import numpy as np
 import pandas as pd
-import joblib
 from tqdm import tqdm
 import itertools
 
-from sklearn.preprocessing import StandardScaler
-from sklearn import linear_model
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 
@@ -20,15 +17,11 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import concatenate
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import MaxPooling1D
 from tensorflow.keras.layers import Add
 
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import SGD
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.callbacks import CSVLogger
-from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow_addons.layers import SpectralNormalization
 from tensorflow.data import TFRecordDataset
 from tensorflow.python.data.ops.dataset_ops import BatchDataset
